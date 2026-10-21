@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>RestEasy</title>
+<style>
+  :root { --fresh: #0E7C66; --mint: #E3F4EF; --ink: #0B1F1B; --mist: #F3F6F5; --muted: #5B6B67; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: var(--mist); color: var(--ink);
+         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  main { width: min(440px, 92vw); background: #fff; border-radius: 20px; padding: 32px 24px; text-align: center;
+         box-shadow: 0 8px 24px rgba(11, 31, 27, .08); }
+  .logo { width: 72px; height: 72px; border-radius: 22px; margin: 0 auto 8px; display: block; }
+  h1 { font-size: 24px; letter-spacing: -.4px; margin: 8px 0 4px; }
+  h1 span { color: var(--fresh); }
+  h2 { font-size: 19px; margin: 18px 0 2px; }
+  p { color: var(--muted); line-height: 1.5; margin: 8px 0 16px; }
+  .code { font-size: 38px; font-weight: 800; letter-spacing: 8px; background: var(--mint); color: var(--fresh); border-radius: 16px; padding: 14px 8px 14px 16px; margin: 8px 0 4px; }
+  .btn { display: block; width: 100%; padding: 15px 18px; border-radius: 999px; font-weight: 600; font-size: 16px; text-decoration: none; border: 0;
+         background: var(--fresh); color: #fff; margin: 10px 0; cursor: pointer; }
+  .btn.alt { background: var(--mint); color: var(--fresh); }
+  .stores { display: flex; gap: 10px; }
+  .stores .btn { font-size: 14px; }
+  .err { color: #D9480F; background: #FFF1EA; border-radius: 12px; padding: 12px; }
+  [hidden] { display: none !important; }
+  small { color: var(--muted); display: block; margin-top: 12px; }
+</style>
+</head>
+<body>
+<main>
+  <svg class="logo" viewBox="0 0 1024 1024" aria-hidden="true">
+    <rect width="1024" height="1024" rx="230" fill="#0E7C66"/>
+    <path d="M512 190C512 190 292 452 292 628a220 220 0 0 0 440 0C732 452 512 190 512 190Z" fill="#fff"/>
+    <path d="M424 626L492 694L618 544" fill="none" stroke="#0E7C66" stroke-width="58" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+  <h1>Rest<span>Easy</span></h1>
+  <h2 id="site"></h2>
+  <p id="msg"></p>
+  <div id="code" class="code" hidden></div>
+  <div id="err" class="err" hidden></div>
+  <a id="open" class="btn" href="resteasy://join" hidden></a>
+  <p id="get"></p>
+  <div class="stores">
+    <a class="btn alt" href="https://apps.apple.com/app/id6815717216">App Store</a>
+    <a class="btn alt" href="https://play.google.com/store/apps/details?id=com.matmich.resteasy">Google Play</a>
+  </div>
+  <small id="hint"></small>
+</main>
+<script>
+(function () {
+  var T = {
+    en: { join: 'Join the team', msg: 'Install RestEasy, then open the app and enter this team code. Your manager will accept you.', open: 'Open RestEasy', get: 'Don’t have the app yet?', bad: 'This team code is not valid anymore. Ask your manager for a new one.', hint: 'The code is already filled in when you tap “Open RestEasy”.' },
+    fr: { join: 'Rejoindre l’équipe', msg: 'Installez RestEasy, puis ouvrez l’application et saisissez ce code d’équipe. Votre responsable vous acceptera.', open: 'Ouvrir RestEasy', get: 'Vous n’avez pas encore l’application ?', bad: 'Ce code d’équipe n’est plus valable. Demandez-en un nouveau à votre responsable.', hint: 'Le code est déjà rempli si vous appuyez sur « Ouvrir RestEasy ».' },
+    de: { join: 'Dem Team beitreten', msg: 'Installieren Sie RestEasy, öffnen Sie die App und geben Sie diesen Teamcode ein. Ihr Vorgesetzter nimmt Sie danach auf.', open: 'RestEasy öffnen', get: 'Noch keine App?', bad: 'Dieser Teamcode ist nicht mehr gültig. Fragen Sie Ihre Vorgesetzten nach einem neuen.', hint: 'Der Code ist bereits ausgefüllt, wenn Sie auf «RestEasy öffnen» tippen.' },
+    pt: { join: 'Entrar na equipa', msg: 'Instale o RestEasy, abra a app e introduza este código da equipa. O seu responsável irá aceitá-lo.', open: 'Abrir o RestEasy', get: 'Ainda não tem a app?', bad: 'Este código de equipa já não é válido. Peça um novo ao seu responsável.', hint: 'O código já vem preenchido se tocar em «Abrir o RestEasy».' }
+  };
+  var lang = (navigator.language || 'en').slice(0, 2).toLowerCase();
+  var t = T[lang] || T.en;
+  document.documentElement.lang = T[lang] ? lang : 'en';
+  function $(id) { return document.getElementById(id); }
+
+  var code = (new URLSearchParams(location.search).get('c') || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+  $('get').textContent = t.get;
+  $('msg').textContent = t.msg;
+  $('site').textContent = t.join;
+  if (!code) { $('msg').textContent = ''; $('err').textContent = t.bad; $('err').hidden = false; return; }
+
+  $('code').textContent = code; $('code').hidden = false;
+  $('open').href = 'resteasy://join?code=' + encodeURIComponent(code);
+  $('open').textContent = t.open; $('open').hidden = false;
+  $('hint').textContent = t.hint;
+
+  // Show which team this code belongs to (the server reveals nothing for an unknown code).
+  fetch('https://rehlxpxdncuhkcbxuzhy.supabase.co/rest/v1/rpc/join_code_info', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', apikey: 'sb_publishable_zvQ-9TrHGtYBuqqGd9zLtg_RmoNCURU' },
+    body: JSON.stringify({ p_code: code })
+  }).then(function (r) { return r.ok ? r.json() : []; }).then(function (rows) {
+    if (rows && rows[0]) { $('site').textContent = rows[0].location_name; }
+    else if (Array.isArray(rows)) { $('err').textContent = t.bad; $('err').hidden = false; }
+  }).catch(function () {});
+
+  setTimeout(function () { window.location.href = $('open').href; }, 600);
+})();
+</script>
+</body>
+</html>

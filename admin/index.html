@@ -149,7 +149,7 @@
     $('kpis').innerHTML =
       kpi('Restaurants', t.restaurants) + kpi('Comptes', t.users) + kpi('Actifs (7 j)', t.active_users_7d) +
       kpi('Actifs (30 j)', t.active_users_30d) + kpi('Nouveaux (7 j)', t.new_users_7d) + kpi('Nouveaux (30 j)', t.new_users_30d) +
-      kpi('Invitations en attente', t.pending_invitations, t.pending_invitations > 0 ? 'warn' : '') + kpi('Sites', t.locations) + kpi('Équipements', t.equipment);
+      kpi('Invitations en attente', t.pending_invitations, t.pending_invitations > 0 ? 'warn' : '') + kpi('Demandes d’adhésion', t.pending_join_requests || 0, t.pending_join_requests > 0 ? 'warn' : '') + kpi('Sites', t.locations) + kpi('Équipements', t.equipment);
 
     var max = Math.max.apply(null, data.signups_by_week.map(function (w) { return w.users; }).concat([1]));
     $('bars').innerHTML = data.signups_by_week.map(function (w) {
@@ -169,7 +169,7 @@
       var rows = data.restaurants.filter(function (r) { return matches(q, [r.name, r.owner_email]); });
       h = '<table><thead><tr><th>Restaurant</th><th>Propriétaire</th><th>Créé</th><th>Membres</th><th>Sites</th><th>Équipements</th><th>Dernière connexion</th><th>Dernier relevé</th><th>Abonnement</th></tr></thead><tbody>';
       rows.forEach(function (r) {
-        h += '<tr class="click" data-r="' + esc(r.id) + '"><td><b>' + esc(r.name) + '</b></td><td>' + esc(r.owner_email || '—') + '</td><td>' + day(r.created_at) + '</td><td>' + r.members +
+        h += '<tr class="click" data-r="' + esc(r.id) + '"><td><b>' + esc(r.name) + '</b><div class="muted">' + esc([r.city, r.country].filter(Boolean).join(', ')) + '</div></td><td>' + esc(r.owner_email || '—') + '</td><td>' + day(r.created_at) + '</td><td>' + r.members +
           (r.pending_members ? ' <span class="pill warn">' + r.pending_members + ' en attente</span>' : '') + '</td><td>' + r.locations + '</td><td>' + r.equipment + '</td><td>' + ago(r.last_sign_in) + '</td><td>' + ago(r.last_reading) +
           '</td><td><span class="pill ' + (r.subscription_status === 'past_due' ? 'bad' : r.subscription_status === 'trial' ? 'warn' : '') + '">' + esc(PLAN[r.plan] || r.plan) + ' · ' + esc(STATUS[r.subscription_status] || r.subscription_status) + '</span></td></tr>';
         if (openRestaurant === r.id) h += detail(r);
@@ -201,7 +201,29 @@
       '</div><p><button class="small" id="d_save" data-id="' + esc(r.id) + '">Enregistrer l’abonnement</button> <span id="d_msg" class="muted"></span></p>' +
       '<b>Membres (' + members.length + ')</b><ul style="margin:6px 0 0;padding-left:18px">' +
       members.map(function (m) { return '<li>' + esc(m.full_name || '—') + ' · ' + esc(m.email || '—') + ' · ' + esc(ROLE[m.role] || m.role) + (m.invitation_pending ? ' · <span class="pill warn">invitation en attente</span>' : '') + ' · ' + ago(m.last_sign_in_at) + '</li>'; }).join('') +
-      '</ul></td></tr>';
+      '</ul>' +
+      '<div style="margin-top:14px"><b>Importer l’équipe pour ce restaurant</b>' +
+      '<p class="muted" style="margin:4px 0 6px">Collez une liste (une personne par ligne : nom, e-mail, téléphone, site, heures/semaine) ou un export Excel/Combo copié. Les colonnes sont reconnues par leur titre.</p>' +
+      '<textarea id="d_import" rows="6" placeholder="Nom complet;Email;Telephone;Etablissement&#10;Jean Dupont;jean@exemple.ch;079 000 00 00;Haiku Nyon"></textarea>' +
+      '<p><label style="display:inline"><input type="checkbox" id="d_send" /> Envoyer les e-mails d’invitation tout de suite</label> ' +
+      '<button class="small" id="d_doimport" data-id="' + esc(r.id) + '">Importer</button> <span id="d_importmsg" class="muted"></span></p></div>' +
+      '</td></tr>';
+  }
+
+  function norm(v) { return String(v || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, ''); }
+  function parseTeam(text) {
+    var lines = text.split(/\r?\n/).filter(function (l) { return l.trim(); });
+    if (!lines.length) return [];
+    var d = ['\t', ';', ','].map(function (c) { return [c, lines[0].split(c).length - 1]; }).sort(function (a, b) { return b[1] - a[1]; })[0][0];
+    var rows = lines.map(function (l) { return l.split(d).map(function (c) { return c.trim().replace(/^"|"$/g, ''); }); });
+    var header = rows[0].some(function (c) { return /@/.test(c); }) ? null : rows.shift().map(norm);
+    function col(names) { if (!header) return -1; for (var i = 0; i < header.length; i++) { if (names.indexOf(header[i]) >= 0) return i; } return -1; }
+    var iName = col(['nomcomplet', 'name', 'nom', 'employe', 'fullname']), iMail = col(['email', 'courriel', 'mail']), iTel = col(['telephone', 'tel', 'phone', 'mobile']), iSite = col(['etablissement', 'site', 'lieu', 'restaurant', 'location']), iH = col(['heureshebdo', 'weeklyhours', 'heuresparsemaine']);
+    return rows.map(function (r) {
+      var mail = iMail >= 0 ? r[iMail] : (r.filter(function (c) { return /@/.test(c); })[0] || '');
+      var name = iName >= 0 ? r[iName] : (r.filter(function (c) { return c && !/@/.test(c); })[0] || '');
+      return { email: (mail || '').toLowerCase(), full_name: name || null, phone: iTel >= 0 ? r[iTel] || null : null, site: iSite >= 0 ? r[iSite] : '', weekly_hours: iH >= 0 ? Number(String(r[iH]).replace(',', '.')) || null : null };
+    }).filter(function (m) { return /@/.test(m.email); });
   }
 
   $('table').addEventListener('click', async function (e) {
@@ -212,6 +234,20 @@
       $('d_msg').textContent = r.error ? 'Échec de l’enregistrement.' : 'Enregistré ✓';
       save.disabled = false;
       if (!r.error) { await load(); }
+      return;
+    }
+    var imp = e.target.closest('#d_doimport');
+    if (imp) {
+      var people = parseTeam($('d_import').value);
+      if (!people.length) { $('d_importmsg').textContent = 'Aucune adresse e-mail trouvée.'; return; }
+      if (!confirm('Ajouter ' + people.length + ' personne(s) à ce restaurant' + ($('d_send').checked ? ' et leur envoyer l’invitation ?' : ' (sans envoyer d’e-mail pour l’instant) ?'))) return;
+      imp.disabled = true; $('d_importmsg').textContent = 'Import en cours…';
+      var res = await sb.functions.invoke('platform-admin', { body: { action: 'import_team', restaurant_id: imp.dataset.id, send_email: $('d_send').checked, members: people } });
+      imp.disabled = false;
+      if (res.error || !res.data || res.data.error) { $('d_importmsg').textContent = 'Échec de l’import.'; return; }
+      var bad = res.data.results.filter(function (x) { return !x.ok; });
+      $('d_importmsg').textContent = res.data.added + ' ajoutée(s)' + (bad.length ? ', ' + bad.length + ' en échec : ' + bad.slice(0, 5).map(function (x) { return x.email + ' (' + x.error + ')'; }).join(' ; ') : ' ✓');
+      await load();
       return;
     }
     if (e.target.closest('.detail')) return;
