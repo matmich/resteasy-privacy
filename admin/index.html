@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>RestEasy · Tableau de bord</title>
+<style>
+  :root { --fresh:#0E7C66; --mint:#E3F4EF; --ink:#0B1F1B; --mist:#F3F6F5; --muted:#5B6B67; --line:#E1E8E5; --warn:#B7791F; --warnbg:#FFF7E0; --bad:#D9480F; --badbg:#FFF1EA; --ok:#2B9348; --okbg:#E8F6EC; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--mist); color:var(--ink); font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+  header { background:#fff; border-bottom:1px solid var(--line); padding:14px 24px; display:flex; align-items:center; gap:16px; position:sticky; top:0; z-index:5; }
+  header h1 { font-size:18px; margin:0; letter-spacing:-.3px; }
+  header h1 span { color:var(--fresh); }
+  header .spacer { flex:1; }
+  header small { color:var(--muted); }
+  main { max-width:1200px; margin:0 auto; padding:24px; }
+  .card { background:#fff; border-radius:16px; padding:18px 20px; box-shadow:0 2px 10px rgba(11,31,27,.05); }
+  .login { max-width:360px; margin:12vh auto; }
+  .login h2 { margin:0 0 12px; }
+  label { display:block; font-size:12px; font-weight:600; color:var(--muted); margin:12px 0 4px; text-transform:uppercase; letter-spacing:.4px; }
+  input, select, textarea { width:100%; padding:11px 12px; border:1.5px solid transparent; border-radius:10px; background:#EAEFED; font:inherit; color:inherit; }
+  input:focus, select:focus, textarea:focus { outline:none; border-color:var(--fresh); background:#fff; }
+  button { font:inherit; font-weight:600; border:0; border-radius:999px; padding:11px 18px; background:var(--fresh); color:#fff; cursor:pointer; }
+  button.ghost { background:var(--mint); color:var(--fresh); }
+  button.small { padding:6px 12px; font-size:13px; }
+  button:disabled { opacity:.5; cursor:default; }
+  .err { color:var(--bad); background:var(--badbg); padding:10px 12px; border-radius:10px; margin-top:12px; }
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:20px; }
+  .kpi b { display:block; font-size:28px; letter-spacing:-.5px; }
+  .kpi span { color:var(--muted); font-size:13px; }
+  .kpi.warn b { color:var(--warn); }
+  .row2 { display:grid; grid-template-columns:2fr 1fr; gap:16px; margin-bottom:20px; }
+  @media (max-width:800px) { .row2 { grid-template-columns:1fr; } main { padding:14px; } }
+  .bars { display:flex; align-items:flex-end; gap:6px; height:110px; margin-top:10px; }
+  .bars div { flex:1; background:var(--fresh); border-radius:6px 6px 0 0; min-height:3px; position:relative; }
+  .bars div em { position:absolute; top:-18px; left:0; right:0; text-align:center; font-style:normal; font-size:11px; color:var(--muted); }
+  .bars div i { position:absolute; bottom:-18px; left:-4px; right:-4px; text-align:center; font-style:normal; font-size:10px; color:var(--muted); white-space:nowrap; }
+  .tabs { display:flex; gap:8px; margin:6px 0 12px; flex-wrap:wrap; align-items:center; }
+  .tabs button { background:#fff; color:var(--ink); border:1px solid var(--line); }
+  .tabs button.on { background:var(--fresh); color:#fff; border-color:var(--fresh); }
+  .tabs input { max-width:260px; margin-left:auto; }
+  table { width:100%; border-collapse:collapse; }
+  th { text-align:left; font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; padding:8px 10px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  td { padding:10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  tr.click { cursor:pointer; }
+  tr.click:hover td { background:#FAFCFB; }
+  .wrap { overflow-x:auto; }
+  .pill { display:inline-block; padding:2px 10px; border-radius:999px; font-size:12px; font-weight:600; background:var(--mint); color:var(--fresh); }
+  .pill.warn { background:var(--warnbg); color:var(--warn); }
+  .pill.bad { background:var(--badbg); color:var(--bad); }
+  .pill.muted { background:#EAEFED; color:var(--muted); }
+  .muted { color:var(--muted); }
+  .detail { background:#FAFCFB; }
+  .detail td { padding:14px 16px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; }
+  [hidden] { display:none !important; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Rest<span>Easy</span> · Tableau de bord</h1>
+  <span class="spacer"></span>
+  <small id="who"></small>
+  <button class="ghost small" id="refresh" hidden>Actualiser</button>
+  <button class="ghost small" id="logout" hidden>Se déconnecter</button>
+</header>
+
+<main>
+  <section id="login" class="card login">
+    <h2>Connexion</h2>
+    <p class="muted">Réservé au propriétaire de l’application.</p>
+    <label for="email">E-mail</label>
+    <input id="email" type="email" autocomplete="username" />
+    <label for="password">Mot de passe</label>
+    <input id="password" type="password" autocomplete="current-password" />
+    <div id="loginErr" class="err" hidden></div>
+    <p><button id="loginBtn">Se connecter</button></p>
+  </section>
+
+  <section id="app" hidden>
+    <div id="error" class="err" hidden></div>
+    <div class="kpis" id="kpis"></div>
+    <div class="row2">
+      <div class="card"><b>Nouveaux comptes par semaine</b><div class="bars" id="bars"></div><div style="height:20px"></div></div>
+      <div class="card"><b>Activité</b><p class="muted" id="activity"></p></div>
+    </div>
+
+    <div class="tabs">
+      <button data-tab="restaurants" class="on">Restaurants</button>
+      <button data-tab="members">Membres</button>
+      <button data-tab="pending">Invitations en attente</button>
+      <input id="search" placeholder="Rechercher (nom, e-mail, restaurant)…" />
+    </div>
+    <div class="card wrap" id="table"></div>
+    <p class="muted" style="font-size:12px;margin-top:16px">Données confidentielles. Les dossiers RH des employés (date de naissance, nationalité, permis) ne sont volontairement pas affichés ici.</p>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function () {
+  var SUPABASE_URL = 'https://rehlxpxdncuhkcbxuzhy.supabase.co';
+  var SUPABASE_KEY = 'sb_publishable_zvQ-9TrHGtYBuqqGd9zLtg_RmoNCURU';
+  var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  var $ = function (id) { return document.getElementById(id); };
+  var data = null, tab = 'restaurants', openRestaurant = null;
+
+  function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function ago(iso) {
+    if (!iso) return '<span class="muted">jamais</span>';
+    var s = (Date.now() - new Date(iso).getTime()) / 1000;
+    if (s < 3600) return 'il y a ' + Math.max(1, Math.round(s / 60)) + ' min';
+    if (s < 86400) return 'il y a ' + Math.round(s / 3600) + ' h';
+    if (s < 86400 * 60) return 'il y a ' + Math.round(s / 86400) + ' j';
+    return new Date(iso).toLocaleDateString('fr-CH');
+  }
+  function day(iso) { return iso ? new Date(iso).toLocaleDateString('fr-CH') : '—'; }
+  var ROLE = { admin: 'Administrateur', manager: 'Responsable', employee: 'Employé' };
+  var PLAN = { free: 'Gratuit', pro: 'Pro', custom: 'Sur mesure' };
+  var STATUS = { active: 'Actif', trial: 'Essai', past_due: 'Impayé', canceled: 'Résilié' };
+
+  function show(err) { var e = $('error'); e.hidden = !err; e.textContent = err || ''; }
+
+  async function load() {
+    show('');
+    var r = await sb.functions.invoke('platform-admin', { body: { action: 'overview' } });
+    if (r.error) {
+      var msg = r.error.message || 'Erreur';
+      try { var j = await r.error.context.json(); if (j && j.error) msg = j.error; } catch (e) {}
+      if (/platform administrator/i.test(msg)) { await sb.auth.signOut(); showLogin('Ce compte n’a pas accès au tableau de bord.'); return; }
+      show(msg); return;
+    }
+    data = r.data;
+    $('who').textContent = data.viewer || '';
+    render();
+  }
+
+  function kpi(label, value, cls) { return '<div class="card kpi ' + (cls || '') + '"><b>' + esc(value) + '</b><span>' + esc(label) + '</span></div>'; }
+
+  function render() {
+    var t = data.totals;
+    $('kpis').innerHTML =
+      kpi('Restaurants', t.restaurants) + kpi('Comptes', t.users) + kpi('Actifs (7 j)', t.active_users_7d) +
+      kpi('Actifs (30 j)', t.active_users_30d) + kpi('Nouveaux (7 j)', t.new_users_7d) + kpi('Nouveaux (30 j)', t.new_users_30d) +
+      kpi('Invitations en attente', t.pending_invitations, t.pending_invitations > 0 ? 'warn' : '') + kpi('Sites', t.locations) + kpi('Équipements', t.equipment);
+
+    var max = Math.max.apply(null, data.signups_by_week.map(function (w) { return w.users; }).concat([1]));
+    $('bars').innerHTML = data.signups_by_week.map(function (w) {
+      var d = new Date(w.week);
+      return '<div style="height:' + Math.max(3, (w.users / max) * 100) + '%"><em>' + w.users + '</em><i>' + d.getDate() + '/' + (d.getMonth() + 1) + '</i></div>';
+    }).join('') || '<span class="muted">Pas encore de données.</span>';
+    $('activity').textContent = t.signed_in_ever + ' compte(s) sur ' + t.users + ' se sont déjà connectés. ' + (t.users - t.signed_in_ever) + ' n’ont jamais ouvert l’application.';
+    table();
+  }
+
+  function matches(q, parts) { if (!q) return true; q = q.toLowerCase(); return parts.join(' ').toLowerCase().indexOf(q) >= 0; }
+
+  function table() {
+    var q = $('search').value.trim();
+    var h = '';
+    if (tab === 'restaurants') {
+      var rows = data.restaurants.filter(function (r) { return matches(q, [r.name, r.owner_email]); });
+      h = '<table><thead><tr><th>Restaurant</th><th>Propriétaire</th><th>Créé</th><th>Membres</th><th>Sites</th><th>Équipements</th><th>Dernière connexion</th><th>Dernier relevé</th><th>Abonnement</th></tr></thead><tbody>';
+      rows.forEach(function (r) {
+        h += '<tr class="click" data-r="' + esc(r.id) + '"><td><b>' + esc(r.name) + '</b></td><td>' + esc(r.owner_email || '—') + '</td><td>' + day(r.created_at) + '</td><td>' + r.members +
+          (r.pending_members ? ' <span class="pill warn">' + r.pending_members + ' en attente</span>' : '') + '</td><td>' + r.locations + '</td><td>' + r.equipment + '</td><td>' + ago(r.last_sign_in) + '</td><td>' + ago(r.last_reading) +
+          '</td><td><span class="pill ' + (r.subscription_status === 'past_due' ? 'bad' : r.subscription_status === 'trial' ? 'warn' : '') + '">' + esc(PLAN[r.plan] || r.plan) + ' · ' + esc(STATUS[r.subscription_status] || r.subscription_status) + '</span></td></tr>';
+        if (openRestaurant === r.id) h += detail(r);
+      });
+      h += '</tbody></table>' + (rows.length ? '' : '<p class="muted">Aucun résultat.</p>');
+    } else {
+      var members = data.members.filter(function (m) { return tab === 'pending' ? m.invitation_pending : true; })
+        .filter(function (m) { return matches(q, [m.full_name, m.email, m.restaurant_name, m.location_name]); });
+      h = '<table><thead><tr><th>Nom</th><th>E-mail</th><th>Rôle</th><th>Restaurant</th><th>Site</th><th>Langue</th><th>Créé</th><th>Dernière connexion</th><th>Statut</th></tr></thead><tbody>';
+      members.forEach(function (m) {
+        var status = m.invitation_pending ? '<span class="pill warn">Invitation en attente</span>' : m.last_sign_in_at ? '<span class="pill">Actif</span>' : '<span class="pill muted">Jamais connecté</span>';
+        h += '<tr><td><b>' + esc(m.full_name || '—') + '</b>' + (m.phone ? '<div class="muted">' + esc(m.phone) + '</div>' : '') + '</td><td>' + esc(m.email || '—') + '</td><td>' + esc(ROLE[m.role] || m.role) + '</td><td>' + esc(m.restaurant_name || '—') +
+          '</td><td>' + esc(m.location_name || '—') + '</td><td>' + esc((m.language || '—').toUpperCase()) + '</td><td>' + day(m.created_at) + '</td><td>' + ago(m.last_sign_in_at) + '</td><td>' + status + (m.push_enabled ? '' : '') + '</td></tr>';
+      });
+      h += '</tbody></table>' + (members.length ? '' : '<p class="muted">Aucun résultat.</p>');
+    }
+    $('table').innerHTML = h;
+  }
+
+  function detail(r) {
+    var members = data.members.filter(function (m) { return m.restaurant_id === r.id; });
+    var trial = r.trial_ends_at ? String(r.trial_ends_at).slice(0, 10) : '';
+    function opts(map, cur) { return Object.keys(map).map(function (k) { return '<option value="' + k + '"' + (k === cur ? ' selected' : '') + '>' + esc(map[k]) + '</option>'; }).join(''); }
+    return '<tr class="detail"><td colspan="9"><div class="grid">' +
+      '<div><label>Formule</label><select id="d_plan">' + opts(PLAN, r.plan) + '</select></div>' +
+      '<div><label>Statut</label><select id="d_status">' + opts(STATUS, r.subscription_status) + '</select></div>' +
+      '<div><label>Fin d’essai</label><input id="d_trial" type="date" value="' + esc(trial) + '" /></div>' +
+      '<div style="grid-column:1/-1"><label>Notes</label><textarea id="d_notes" rows="2">' + esc(r.billing_notes || '') + '</textarea></div>' +
+      '</div><p><button class="small" id="d_save" data-id="' + esc(r.id) + '">Enregistrer l’abonnement</button> <span id="d_msg" class="muted"></span></p>' +
+      '<b>Membres (' + members.length + ')</b><ul style="margin:6px 0 0;padding-left:18px">' +
+      members.map(function (m) { return '<li>' + esc(m.full_name || '—') + ' · ' + esc(m.email || '—') + ' · ' + esc(ROLE[m.role] || m.role) + (m.invitation_pending ? ' · <span class="pill warn">invitation en attente</span>' : '') + ' · ' + ago(m.last_sign_in_at) + '</li>'; }).join('') +
+      '</ul></td></tr>';
+  }
+
+  $('table').addEventListener('click', async function (e) {
+    var save = e.target.closest('#d_save');
+    if (save) {
+      save.disabled = true; $('d_msg').textContent = 'Enregistrement…';
+      var r = await sb.functions.invoke('platform-admin', { body: { action: 'set_billing', restaurant_id: save.dataset.id, plan: $('d_plan').value, subscription_status: $('d_status').value, trial_ends_at: $('d_trial').value || null, billing_notes: $('d_notes').value } });
+      $('d_msg').textContent = r.error ? 'Échec de l’enregistrement.' : 'Enregistré ✓';
+      save.disabled = false;
+      if (!r.error) { await load(); }
+      return;
+    }
+    if (e.target.closest('.detail')) return;
+    var row = e.target.closest('tr.click');
+    if (row) { openRestaurant = openRestaurant === row.dataset.r ? null : row.dataset.r; table(); }
+  });
+  document.querySelectorAll('.tabs button').forEach(function (b) {
+    b.addEventListener('click', function () { tab = b.dataset.tab; document.querySelectorAll('.tabs button').forEach(function (x) { x.classList.toggle('on', x === b); }); table(); });
+  });
+  $('search').addEventListener('input', function () { if (data) table(); });
+  $('refresh').addEventListener('click', load);
+
+  function showLogin(msg) {
+    $('login').hidden = false; $('app').hidden = true; $('logout').hidden = true; $('refresh').hidden = true; $('who').textContent = '';
+    var e = $('loginErr'); e.hidden = !msg; e.textContent = msg || '';
+  }
+  async function enter() { $('login').hidden = true; $('app').hidden = false; $('logout').hidden = false; $('refresh').hidden = false; await load(); }
+
+  $('loginBtn').addEventListener('click', async function () {
+    var r = await sb.auth.signInWithPassword({ email: $('email').value.trim(), password: $('password').value });
+    $('password').value = '';
+    if (r.error) { showLogin('Identifiants incorrects.'); return; }
+    enter();
+  });
+  $('password').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('loginBtn').click(); });
+  $('logout').addEventListener('click', async function () { await sb.auth.signOut(); data = null; showLogin(''); });
+
+  sb.auth.getSession().then(function (r) { if (r.data.session) enter(); else showLogin(''); });
+})();
+</script>
+</body>
+</html>
